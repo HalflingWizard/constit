@@ -10,6 +10,7 @@ SMOKE_TEST_ROWS="${SMOKE_TEST_ROWS:-2}"
 AUTO_WORKER_MAX="${AUTO_WORKER_MAX:-}"
 AUTO_START_OLLAMA="${AUTO_START_OLLAMA:-1}"
 AUTO_RESTART_OLLAMA="${AUTO_RESTART_OLLAMA:-1}"
+AUTO_PULL_OLLAMA_MODEL="${AUTO_PULL_OLLAMA_MODEL:-1}"
 OLLAMA_RUNTIME_ENV_FILE="${OLLAMA_RUNTIME_ENV_FILE:-ollama_runtime.env}"
 
 RUN_ARGS=()
@@ -109,6 +110,47 @@ restart_ollama_server() {
   return 1
 }
 
+ensure_ollama_model_available() {
+  local model_name="${OLLAMA_MODEL:-gemma3:1b}"
+  local api_base="${OLLAMA_API_BASE:-http://localhost:11434}"
+  python - "$api_base" "$model_name" <<'PY'
+import json
+import sys
+from urllib.request import urlopen
+
+api_base = sys.argv[1].rstrip("/")
+model_name = sys.argv[2].strip()
+
+with urlopen(f"{api_base}/api/tags", timeout=10) as response:
+    payload = json.load(response)
+
+models = payload.get("models", []) if isinstance(payload, dict) else []
+names = {str(item.get("name", "")).strip() for item in models if isinstance(item, dict)}
+if model_name not in names:
+    print(f"Configured Ollama model '{model_name}' was not found on this machine.", file=sys.stderr)
+    if names:
+        print("Available models:", file=sys.stderr)
+        for name in sorted(names):
+            print(f"  - {name}", file=sys.stderr)
+    else:
+        print("No models are currently available in Ollama.", file=sys.stderr)
+    print(f"Run: ollama pull {model_name}", file=sys.stderr)
+    sys.exit(1)
+PY
+}
+
+pull_ollama_model_if_needed() {
+  local model_name="${OLLAMA_MODEL:-gemma3:1b}"
+  if [[ "$AUTO_PULL_OLLAMA_MODEL" -ne 1 ]]; then
+    return 1
+  fi
+  if ! command -v ollama >/dev/null 2>&1; then
+    return 1
+  fi
+  echo "Configured model '${model_name}' is not available to the running Ollama server. Pulling it automatically..."
+  ollama pull "$model_name"
+}
+
 if ! curl -fsS "${OLLAMA_API_BASE:-http://localhost:11434}/api/tags" >/dev/null 2>&1; then
   if [[ "$AUTO_START_OLLAMA" -eq 1 ]] && command -v ollama >/dev/null 2>&1; then
     echo "Ollama server not reachable. Starting a local tuned ollama serve..."
@@ -123,6 +165,14 @@ else
     restart_ollama_server || exit 1
   else
     echo "Ollama server already running. Tuned env was written to ${OLLAMA_RUNTIME_ENV_FILE}, but daemon-level changes only apply after restart."
+  fi
+fi
+
+if ! ensure_ollama_model_available; then
+  if pull_ollama_model_if_needed; then
+    ensure_ollama_model_available
+  else
+    exit 1
   fi
 fi
 

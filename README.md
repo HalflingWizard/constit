@@ -54,6 +54,13 @@ ollama list
 curl http://localhost:11434/api/tags
 ```
 
+5. Confirm the exact model name exists on that machine:
+
+```bash
+ollama list
+ollama pull gemma3:1b
+```
+
 ## Run
 
 From this folder:
@@ -71,6 +78,7 @@ That will:
 - detect CPU/GPU resources and write recommended `OLLAMA_NUM_PARALLEL`, `OLLAMA_MAX_LOADED_MODELS`, and `OLLAMA_MAX_QUEUE`
 - auto-start `ollama serve` with the tuned environment if no Ollama server is already running
 - restart an already running local `ollama serve` process by default so the tuned daemon settings take effect
+- if the configured model is missing from the running Ollama server after restart/start, automatically run `ollama pull` for that model
 - if `constitutional_ai_parallel` is requested and you did not explicitly set `--parallel-rule-workers`, probe the highest stable worker count automatically
 - run a short preflight check on the first 2 rows for the requested cases
 - if the preflight succeeds, run the requested experiment conditions on the main output folder
@@ -112,6 +120,12 @@ Disable automatic restart of an already running Ollama server:
 
 ```bash
 AUTO_RESTART_OLLAMA=0 ./run_experiment.sh
+```
+
+Disable automatic model pull if the running Ollama server cannot see the configured model:
+
+```bash
+AUTO_PULL_OLLAMA_MODEL=0 ./run_experiment.sh
 ```
 
 Run a small test slice:
@@ -169,7 +183,9 @@ The parallel condition is fixed to:
 `OLLAMA_NUM_PARALLEL`, `OLLAMA_MAX_LOADED_MODELS`, and `OLLAMA_MAX_QUEUE` affect the Ollama server process, not just the experiment script.
 
 - By default, `run_experiment.sh` restarts a running local `ollama serve` process so the tuned settings take effect.
+- By default, if the restarted or newly started Ollama daemon does not expose the configured model, the wrapper runs `ollama pull <model>` automatically and then rechecks availability.
 - If you set `AUTO_RESTART_OLLAMA=0`, the bundle will keep using the existing daemon without applying new daemon-level settings.
+- If you set `AUTO_PULL_OLLAMA_MODEL=0`, the bundle will not attempt automatic recovery when the model is missing from the running daemon.
 - If your Ollama instance is managed by `systemd`, Docker, or another supervisor, you may prefer disabling the automatic restart and managing the service yourself.
 
 ## Data notes

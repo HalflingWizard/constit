@@ -114,7 +114,7 @@ def main() -> None:
     args = parse_args()
     max_workers = max(1, int(args.max_workers))
     forwarded_args = normalize_forwarded_args(args.forwarded_args)
-    successful = 1
+    successful = 0
     failed_at: int | None = None
 
     for candidate in candidate_sequence(max_workers):
@@ -123,6 +123,10 @@ def main() -> None:
             continue
         failed_at = candidate
         break
+
+    if successful == 0:
+        print("No stable worker count succeeded during probe.", file=sys.stderr)
+        sys.exit(1)
 
     if failed_at is not None and failed_at - successful > 1:
         low = successful + 1
