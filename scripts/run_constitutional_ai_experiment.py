@@ -101,8 +101,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--parallel-rule-workers",
         type=int,
-        default=0,
-        help="Maximum concurrent rule workers for the parallel case. Use 0 to let the engine decide.",
+        default=1,
+        help="Maximum concurrent rule workers for the parallel case. Use 1 for the safest Ollama behavior.",
     )
     return parser.parse_args()
 

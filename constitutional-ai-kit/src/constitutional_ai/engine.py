@@ -302,7 +302,8 @@ def run_constitutional_turn(
             if should_halt():
                 break
             add_event(stage="parallel_pass_checks_started", message="Checking all rules in parallel.", iteration=revision_rounds)
-            with ThreadPoolExecutor(max_workers=max(1, len(rules))) as executor:
+            pass_workers = settings.parallel_max_workers if settings.parallel_max_workers > 0 else len(rules)
+            with ThreadPoolExecutor(max_workers=max(1, min(len(rules), pass_workers))) as executor:
                 pass_results = list(
                     executor.map(
                         lambda pair: _judge_pass_for_rule(
@@ -372,7 +373,8 @@ def run_constitutional_turn(
                 ),
                 iteration=revision_rounds,
             )
-            with ThreadPoolExecutor(max_workers=max(1, len(failed_rule_indices))) as executor:
+            critique_workers = settings.parallel_max_workers if settings.parallel_max_workers > 0 else len(failed_rule_indices)
+            with ThreadPoolExecutor(max_workers=max(1, min(len(failed_rule_indices), critique_workers))) as executor:
                 critique_results = list(
                     executor.map(
                         lambda idx: _judge_critique_for_rule(

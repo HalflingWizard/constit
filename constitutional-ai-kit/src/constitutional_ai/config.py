@@ -204,6 +204,7 @@ class RuntimeSettings:
     max_revisions_per_rule: int = 1
     execution_mode: str = "sequential"
     parallel_max_iterations: int = 0
+    parallel_max_workers: int = 0
     max_iteration_ms: int = 0
     timeout_ms: int = 45_000
 
@@ -231,6 +232,7 @@ class RuntimeSettings:
             max_revisions_per_rule=int(value.get("max_revisions_per_rule", 1) or 1),
             execution_mode=execution_mode,
             parallel_max_iterations=max(0, int(value.get("parallel_max_iterations", 0) or 0)),
+            parallel_max_workers=max(0, int(value.get("parallel_max_workers", 0) or 0)),
             max_iteration_ms=max(0, int(value.get("max_iteration_ms", 0) or 0)),
             timeout_ms=int(value.get("timeout_ms", 45_000) or 45_000),
         )

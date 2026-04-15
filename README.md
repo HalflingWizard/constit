@@ -31,6 +31,8 @@ Running the bundle creates:
 - `experiment_runs/prompt_embedded_constitution/row_*.json`
 - `experiment_runs/constitutional_ai_parallel/row_*.json`
 - `preflight_runs/...` JSONs for the smoke test
+- `worker_probe_runs/...` JSONs for automatic parallel worker detection
+- `ollama_runtime.env` and `ollama_runtime.json` with detected hardware and recommended Ollama server settings
 - one `progress.json` file per case for resumability
 
 If the run is interrupted, rerunning the same command resumes from the completed JSON files unless you pass `--overwrite`.
@@ -66,6 +68,10 @@ That will:
 - create a local virtual environment in `.venv` if needed
 - activate the virtual environment
 - install or update the required Python dependencies
+- detect CPU/GPU resources and write recommended `OLLAMA_NUM_PARALLEL`, `OLLAMA_MAX_LOADED_MODELS`, and `OLLAMA_MAX_QUEUE`
+- auto-start `ollama serve` with the tuned environment if no Ollama server is already running
+- restart an already running local `ollama serve` process by default so the tuned daemon settings take effect
+- if `constitutional_ai_parallel` is requested and you did not explicitly set `--parallel-rule-workers`, probe the highest stable worker count automatically
 - run a short preflight check on the first 2 rows for the requested cases
 - if the preflight succeeds, run the requested experiment conditions on the main output folder
 - deactivate the virtual environment before exiting
@@ -88,6 +94,24 @@ Change the number of rows used by the preflight check:
 
 ```bash
 SMOKE_TEST_ROWS=1 ./run_experiment.sh
+```
+
+Override the automatic worker probe upper bound:
+
+```bash
+AUTO_WORKER_MAX=6 ./run_experiment.sh
+```
+
+Disable automatic Ollama server startup:
+
+```bash
+AUTO_START_OLLAMA=0 ./run_experiment.sh
+```
+
+Disable automatic restart of an already running Ollama server:
+
+```bash
+AUTO_RESTART_OLLAMA=0 ./run_experiment.sh
 ```
 
 Run a small test slice:
@@ -138,6 +162,15 @@ The three conditions are:
 The parallel condition is fixed to:
 
 - `parallel_max_iterations = 1`
+- `parallel_max_workers` is chosen automatically for the device when the parallel case is requested, unless you explicitly pass `--parallel-rule-workers`
+
+## Important note about Ollama daemon settings
+
+`OLLAMA_NUM_PARALLEL`, `OLLAMA_MAX_LOADED_MODELS`, and `OLLAMA_MAX_QUEUE` affect the Ollama server process, not just the experiment script.
+
+- By default, `run_experiment.sh` restarts a running local `ollama serve` process so the tuned settings take effect.
+- If you set `AUTO_RESTART_OLLAMA=0`, the bundle will keep using the existing daemon without applying new daemon-level settings.
+- If your Ollama instance is managed by `systemd`, Docker, or another supervisor, you may prefer disabling the automatic restart and managing the service yourself.
 
 ## Data notes
 
