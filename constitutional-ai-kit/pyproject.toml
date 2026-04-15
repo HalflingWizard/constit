@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "constitutional-ai"
+version = "0.1.0"
+description = "Constitutional AI package with shared engine for CLI, GUI, and notebooks"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "ConstitutionalAI GUI Contributors" }
+]
+keywords = ["constitutional-ai", "llm", "chatbot", "gui", "cli"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "litellm",
+]
+
+[project.scripts]
+constitutional-ai = "constitutional_ai.cli:main"
+constitutional-ai-gui = "constitutional_ai.server:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+constitutional_ai = ["static/index.html", "static/app.js"]
