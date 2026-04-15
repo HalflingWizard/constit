@@ -80,6 +80,7 @@ That will:
 - restart an already running local `ollama serve` process by default so the tuned daemon settings take effect
 - if the configured model is missing from the running Ollama server after restart/start, automatically run `ollama pull` for that model
 - if `constitutional_ai_parallel` is requested and you did not explicitly set `--parallel-rule-workers`, probe the highest stable worker count automatically
+- the worker probe uses a smaller constitution subset by default, with `rules_for_probe = 3 × workers`, capped by the full constitution size
 - run a short preflight check on the first 2 rows for the requested cases
 - if the preflight succeeds, run the requested experiment conditions on the main output folder
 - deactivate the virtual environment before exiting

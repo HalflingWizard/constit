@@ -75,6 +75,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--dataset", type=Path, default=DATASET_PATH, help="CSV dataset path.")
     parser.add_argument("--constitution", type=Path, default=CONSTITUTION_PATH, help="Constitution text path.")
+    parser.add_argument(
+        "--max-constitution-rules",
+        type=int,
+        default=0,
+        help="If > 0, use only the first N non-empty constitution rules.",
+    )
     parser.add_argument("--output-root", type=Path, default=OUTPUT_ROOT, help="Directory for JSON outputs.")
     parser.add_argument("--writer-provider", default=DEFAULT_PROVIDER, help="Writer provider.")
     parser.add_argument("--writer-model", default=DEFAULT_MODEL, help="Writer model.")
@@ -457,6 +463,8 @@ def main() -> None:
     rows = list(subset.iterrows())
 
     rules = read_rules(args.constitution)
+    if args.max_constitution_rules > 0:
+        rules = rules[: max(1, args.max_constitution_rules)]
     args.output_root.mkdir(parents=True, exist_ok=True)
 
     for case_name in args.cases:

@@ -28,6 +28,18 @@ def parse_args() -> argparse.Namespace:
         help="Upper bound to probe. Defaults to min(8, cpu_count).",
     )
     parser.add_argument(
+        "--rules-per-worker",
+        type=int,
+        default=3,
+        help="Probe each candidate with workers * rules_per_worker constitution rules.",
+    )
+    parser.add_argument(
+        "--constitution",
+        type=Path,
+        default=ROOT / "constitution.txt",
+        help="Constitution file used to count available rules for the probe.",
+    )
+    parser.add_argument(
         "forwarded_args",
         nargs=argparse.REMAINDER,
         help="Arguments forwarded to the main experiment runner.",
@@ -87,7 +99,11 @@ def candidate_sequence(max_workers: int) -> list[int]:
     return deduped
 
 
-def run_probe(candidate: int, forwarded_args: list[str]) -> bool:
+def count_rules(path: Path) -> int:
+    return sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+
+
+def run_probe(candidate: int, forwarded_args: list[str], subset_rule_count: int) -> bool:
     probe_dir = PROBE_ROOT / f"workers_{candidate}"
     shutil.rmtree(probe_dir, ignore_errors=True)
     cmd = [
@@ -104,6 +120,8 @@ def run_probe(candidate: int, forwarded_args: list[str]) -> bool:
         str(probe_dir),
         "--parallel-rule-workers",
         str(candidate),
+        "--max-constitution-rules",
+        str(subset_rule_count),
         *forwarded_args,
     ]
     result = subprocess.run(cmd, cwd=ROOT)
@@ -114,11 +132,14 @@ def main() -> None:
     args = parse_args()
     max_workers = max(1, int(args.max_workers))
     forwarded_args = normalize_forwarded_args(args.forwarded_args)
+    total_rules = max(1, count_rules(args.constitution))
+    rules_per_worker = max(1, int(args.rules_per_worker))
     successful = 0
     failed_at: int | None = None
 
     for candidate in candidate_sequence(max_workers):
-        if run_probe(candidate, forwarded_args):
+        subset_rule_count = min(total_rules, candidate * rules_per_worker)
+        if run_probe(candidate, forwarded_args, subset_rule_count):
             successful = candidate
             continue
         failed_at = candidate
@@ -133,7 +154,8 @@ def main() -> None:
         high = failed_at - 1
         while low <= high:
             candidate = (low + high) // 2
-            if run_probe(candidate, forwarded_args):
+            subset_rule_count = min(total_rules, candidate * rules_per_worker)
+            if run_probe(candidate, forwarded_args, subset_rule_count):
                 successful = candidate
                 low = candidate + 1
             else:
