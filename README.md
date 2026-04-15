@@ -30,6 +30,7 @@ Running the bundle creates:
 - `experiment_runs/default_prompt/row_*.json`
 - `experiment_runs/prompt_embedded_constitution/row_*.json`
 - `experiment_runs/constitutional_ai_parallel/row_*.json`
+- `preflight_runs/...` JSONs for the smoke test
 - one `progress.json` file per case for resumability
 
 If the run is interrupted, rerunning the same command resumes from the completed JSON files unless you pass `--overwrite`.
@@ -65,7 +66,8 @@ That will:
 - create a local virtual environment in `.venv` if needed
 - activate the virtual environment
 - install or update the required Python dependencies
-- run all three experiment conditions
+- run a short preflight check on the first 2 rows for the requested cases
+- if the preflight succeeds, run the requested experiment conditions on the main output folder
 - deactivate the virtual environment before exiting
 
 ## Useful commands
@@ -74,6 +76,18 @@ Run only one condition:
 
 ```bash
 ./run_experiment.sh --cases constitutional_ai_parallel
+```
+
+Skip the preflight check:
+
+```bash
+./run_experiment.sh --skip-preflight
+```
+
+Change the number of rows used by the preflight check:
+
+```bash
+SMOKE_TEST_ROWS=1 ./run_experiment.sh
 ```
 
 Run a small test slice:
