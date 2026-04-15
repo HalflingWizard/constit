@@ -18,3 +18,5 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
 python scripts/run_constitutional_ai_experiment.py "$@"
+
+deactivate 2>/dev/null || true

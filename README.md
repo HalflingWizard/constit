@@ -60,7 +60,13 @@ chmod +x run_experiment.sh
 ./run_experiment.sh
 ```
 
-That will create a local virtual environment if needed, install the Python dependencies, and run all three experiment conditions.
+That will:
+
+- create a local virtual environment in `.venv` if needed
+- activate the virtual environment
+- install or update the required Python dependencies
+- run all three experiment conditions
+- deactivate the virtual environment before exiting
 
 ## Useful commands
 
