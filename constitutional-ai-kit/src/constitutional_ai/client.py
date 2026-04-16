@@ -54,11 +54,42 @@ class LiteLLMAPIError(RuntimeError):
 _MODEL_CACHE: dict[tuple[str, str, str, str], tuple[float, ModelListResult]] = {}
 _MODEL_CACHE_TTL_SECONDS = 60.0
 _ENDPOINT_LISTING_PROVIDERS = {"openai", "anthropic", "gemini", "xai", "litellm_proxy", "fireworks_ai"}
+_TRANSIENT_ERROR_PHRASES = {
+    "500 internal server error",
+    "502 bad gateway",
+    "503 service unavailable",
+    "504 gateway timeout",
+    "apiconnectionerror",
+    "connection reset",
+    "connection aborted",
+    "connection closed",
+    "server disconnected",
+    "read timeout",
+    "timed out",
+    "eof",
+}
 
 
 def _debug_enabled() -> bool:
     """Return True when debug logging is enabled by environment."""
     return os.getenv("CONSTITUTIONAL_AI_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _completion_retry_attempts(provider: str) -> int:
+    """Return the number of transient transport retries for one completion."""
+    raw = os.getenv("CONSTITUTIONAL_AI_COMPLETION_RETRIES", "").strip()
+    if raw:
+        try:
+            return max(0, int(raw))
+        except ValueError:
+            pass
+    return 2 if provider in {"ollama", "lm_studio"} else 0
+
+
+def _is_retryable_completion_error(exc: Exception) -> bool:
+    """Return True when the exception looks like a transient transport/server failure."""
+    message = str(exc).lower()
+    return any(phrase in message for phrase in _TRANSIENT_ERROR_PHRASES)
 
 
 def _to_plain_dict(value: Any) -> dict[str, Any]:
@@ -205,10 +236,19 @@ def chat_completion(
             file=sys.stderr,
         )
 
-    try:
-        response = completion(**kwargs)
-    except Exception as exc:  # noqa: BLE001
-        raise LiteLLMAPIError(str(exc)) from exc
+    last_error: Exception | None = None
+    attempts = 1 + _completion_retry_attempts(endpoint.provider)
+    for attempt in range(1, attempts + 1):
+        try:
+            response = completion(**kwargs)
+            break
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+            if attempt >= attempts or not _is_retryable_completion_error(exc):
+                raise LiteLLMAPIError(str(exc)) from exc
+            time.sleep(min(2.0, 0.5 * (2 ** (attempt - 1))))
+    else:  # pragma: no cover
+        raise LiteLLMAPIError(str(last_error or "LiteLLM completion failed."))
 
     raw = _to_plain_dict(response)
     try:

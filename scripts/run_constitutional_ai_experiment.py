@@ -250,6 +250,29 @@ def is_non_retryable_error(error: Exception) -> bool:
     return any(phrase in message for phrase in non_retryable_phrases)
 
 
+def is_retryable_ollama_parallel_error(error: Exception) -> bool:
+    message = str(error).lower()
+    retryable_phrases = [
+        "500 internal server error",
+        "apiconnectionerror",
+        "ollamaexception",
+        'post "http://127.0.0.1:',
+        "eof",
+        "timed out",
+        "server disconnected",
+    ]
+    return any(phrase in message for phrase in retryable_phrases)
+
+
+def downgrade_parallel_workers(config: AppConfig) -> tuple[int, int] | None:
+    current = int(config.settings.parallel_max_workers)
+    if config.settings.execution_mode != "parallel" or current <= 1:
+        return None
+    updated = max(1, current - 1)
+    config.settings.parallel_max_workers = updated
+    return current, updated
+
+
 def run_row(config: AppConfig, query: str) -> tuple[dict[str, Any], int]:
     thread = [ChatMessage(role="user", content=query)]
     started = time.perf_counter()
@@ -269,6 +292,15 @@ def run_row_with_retries(config: AppConfig, query: str, args: argparse.Namespace
         except Exception as exc:  # noqa: BLE001
             if attempt >= attempts or is_non_retryable_error(exc):
                 raise
+            if is_retryable_ollama_parallel_error(exc):
+                downgrade = downgrade_parallel_workers(config)
+                if downgrade is not None:
+                    previous_workers, updated_workers = downgrade
+                    print(
+                        "Encountered transient Ollama parallel failure; "
+                        f"reducing parallel-rule-workers from {previous_workers} to {updated_workers} and retrying.",
+                        file=sys.stderr,
+                    )
             time.sleep(retry_delay_seconds(attempt, args))
     raise RuntimeError("Retry loop ended unexpectedly.")
 

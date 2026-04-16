@@ -81,6 +81,7 @@ That will:
 - if the configured model is missing from the running Ollama server after restart/start, automatically run `ollama pull` for that model
 - if `constitutional_ai_parallel` is requested and you did not explicitly set `--parallel-rule-workers`, probe the highest stable worker count automatically
 - the worker probe uses a smaller constitution subset by default, with `rules_for_probe = 3 × workers`, capped by the full constitution size
+- if Ollama later starts returning transient `500`/`EOF` errors during the full parallel run, the runner automatically retries the row and steps `parallel-rule-workers` down until the run stabilizes
 - run a short preflight check on the first 2 rows for the requested cases
 - if the preflight succeeds, run the requested experiment conditions on the main output folder
 - deactivate the virtual environment before exiting
@@ -178,6 +179,7 @@ The parallel condition is fixed to:
 
 - `parallel_max_iterations = 1`
 - `parallel_max_workers` is chosen automatically for the device when the parallel case is requested, unless you explicitly pass `--parallel-rule-workers`
+- the chosen worker count is treated as a starting point, not a guarantee; long runs can still hit Ollama instability on harder rows, so the runner may automatically step down to fewer workers while retrying failed rows
 
 ## Important note about Ollama daemon settings
 
