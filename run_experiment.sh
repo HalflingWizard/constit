@@ -198,7 +198,6 @@ if [[ "$SKIP_PREFLIGHT" -eq 0 ]]; then
   python scripts/run_constitutional_ai_experiment.py \
     --start 0 \
     --limit "$SMOKE_TEST_ROWS" \
-    --overwrite \
     --output-root preflight_runs \
     "${RUN_ARGS[@]}"
   echo "Preflight check passed. Starting full run..."

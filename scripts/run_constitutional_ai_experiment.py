@@ -204,6 +204,27 @@ def output_path(output_root: Path, case_name: str, row_index: int) -> Path:
     return output_root / case_name / f"row_{row_index:06d}.json"
 
 
+def split_completed_rows(
+    rows: list[tuple[int, pd.Series]],
+    *,
+    output_root: Path,
+    case_name: str,
+    overwrite: bool,
+) -> tuple[list[tuple[int, pd.Series]], int]:
+    if overwrite:
+        return list(rows), 0
+
+    pending_rows: list[tuple[int, pd.Series]] = []
+    skipped_count = 0
+    for row_index, row in rows:
+        target = output_path(output_root, case_name, row_index)
+        if row_json_is_complete(target):
+            skipped_count += 1
+            continue
+        pending_rows.append((row_index, row))
+    return pending_rows, skipped_count
+
+
 def update_progress(
     *,
     path: Path,
@@ -376,8 +397,27 @@ def run_case(
     progress_path = case_dir / "progress.json"
     last_error_path = case_dir / "last_error.json"
     processed_count = 0
-    skipped_count = 0
+    pending_rows, skipped_count = split_completed_rows(
+        rows,
+        output_root=output_root,
+        case_name=case_name,
+        overwrite=args.overwrite,
+    )
     error_count = 0
+
+    if not pending_rows:
+        print(f"{case_name}: all {len(rows)} selected row(s) already complete; skipping case.")
+        update_progress(
+            path=progress_path,
+            case_name=case_name,
+            row_index=rows[-1][0] if rows else None,
+            status="completed",
+            processed_count=processed_count,
+            skipped_count=skipped_count,
+            error_count=error_count,
+            total_rows=len(rows),
+        )
+        return
 
     update_progress(
         path=progress_path,
@@ -390,22 +430,8 @@ def run_case(
         total_rows=len(rows),
     )
 
-    for row_index, row in tqdm(rows, desc=case_name, unit="row"):
+    for row_index, row in tqdm(pending_rows, desc=case_name, unit="row"):
         target = output_path(output_root, case_name, row_index)
-        if not args.overwrite and row_json_is_complete(target):
-            skipped_count += 1
-            update_progress(
-                path=progress_path,
-                case_name=case_name,
-                row_index=row_index,
-                status="running",
-                processed_count=processed_count,
-                skipped_count=skipped_count,
-                error_count=error_count,
-                total_rows=len(rows),
-            )
-            continue
-
         query = safe_text(row.get("questionText", ""))
         if not query:
             raise ValueError(f"Row {row_index} has empty questionText.")

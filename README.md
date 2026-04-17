@@ -35,7 +35,7 @@ Running the bundle creates:
 - `ollama_runtime.env` and `ollama_runtime.json` with detected hardware and recommended Ollama server settings
 - one `progress.json` file per case for resumability
 
-If the run is interrupted, rerunning the same command resumes from the completed JSON files unless you pass `--overwrite`.
+If the run is interrupted, rerunning the same command resumes from the completed JSON files unless you pass `--overwrite`. Finished cases are skipped entirely, partially finished cases continue from only the missing rows, and the preflight outputs are reused on rerun unless you explicitly request overwrite.
 
 ## Prerequisites on the Linux server
 
