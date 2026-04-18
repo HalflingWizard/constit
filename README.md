@@ -86,6 +86,32 @@ That will:
 - if the preflight succeeds, run the requested experiment conditions on the main output folder
 - deactivate the virtual environment before exiting
 
+## Run on a server and keep it running after SSH disconnects
+
+If you want to start the experiment over SSH and then log out while it continues running, use `sudo -v` first and then launch the script with `nohup`:
+
+```bash
+sudo -v
+nohup sudo ./run_experiment.sh > output.log 2>&1 &
+```
+
+What each part does:
+
+- `sudo -v` refreshes your cached `sudo` credentials before the background job starts
+- this matters because `sudo` may otherwise try to prompt for a password after the process has already been detached from your terminal
+- `nohup` prevents the job from being terminated when your SSH session closes
+- `> output.log 2>&1` sends both standard output and standard error to `output.log`
+- trailing `&` starts the command in the background so you get your shell prompt back immediately
+
+After starting it, you can confirm that it is still running and watch the log:
+
+```bash
+ps -ef | grep run_experiment.sh
+tail -f output.log
+```
+
+This bundle may also start or restart `ollama serve` internally, and that child process is already launched with `nohup` by the wrapper when needed.
+
 ## Useful commands
 
 Run only one condition:
